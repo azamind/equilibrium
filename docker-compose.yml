@@ -17,27 +17,45 @@ services:
         build:
             context: ./docker/python
         ports:
-            - ${DB_POSTGRES_PORT}:${DB_POSTGRES_PORT}
+            - ${WEB_PORT}:${WEB_PORT}
         volumes:
             - ./:${APP_CODE_PATH_CONTAINER}/${PROJECT_NAME}
         command: >
-            sh -c "python manage.py runserver 0.0.0.0:${WEB_PORT}"
+            sh -c "python ${APP_CODE_PATH_CONTAINER}/${PROJECT_NAME}/manage.py runserver 0.0.0.0:${WEB_PORT}"
         environment:
+            - PROJECT_NAME=${PROJECT_NAME}
+            - APP_CODE_PATH_CONTAINER=${APP_CODE_PATH_CONTAINER}
             - DB_POSTGRES_HOST=${DB_POSTGRES_HOST}
             - DB_POSTGRES_NAME=${DB_POSTGRES_NAME}
             - DB_POSTGRES_USER=${DB_POSTGRES_USER}
             - DB_POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
             - DB_POSTGRES_PORT=${DB_POSTGRES_PORT}
         restart: unless-stopped
-        tty: true
-        container_name: web
         networks:
             - frontend
             - backend
+        tty: true
+        links:
+            - docker-in-docker
+        container_name: web
+
+    ### Docker-in-Docker ################################################
+    docker-in-docker:
+        image: docker:dind
+        privileged: true
+        volumes:
+            - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+            - ${DATA_PATH_HOST}/dind:/var/lib/docker
+        expose:
+            - 2375
+        networks:
+            - backend
+        container_name: docker-in-docker
 
     ### PostgreSQL ###########################################
     postgres:
-        build: ./docker/postgres
+        build:
+            context: ./docker/postgres
         ports:
             - "${DB_POSTGRES_PORT}:5432"
         restart: unless-stopped
