@@ -1,0 +1,65 @@
+version: "3"
+
+networks:
+    frontend:
+        driver: ${NETWORKS_DRIVER}
+    backend:
+        driver: ${NETWORKS_DRIVER}
+
+volumes:
+    postgres:
+        driver: ${VOLUMES_DRIVER}
+    pgdata:
+        driver: ${VOLUMES_DRIVER}
+
+services:
+    web:
+        build:
+            context: ./docker/python
+        ports:
+            - ${DB_POSTGRES_PORT}:${DB_POSTGRES_PORT}
+        volumes:
+            - ./:${APP_CODE_PATH_CONTAINER}/${PROJECT_NAME}
+        command: >
+            sh -c "python manage.py runserver 0.0.0.0:${WEB_PORT}"
+        environment:
+            - DB_POSTGRES_HOST=${DB_POSTGRES_HOST}
+            - DB_POSTGRES_NAME=${DB_POSTGRES_NAME}
+            - DB_POSTGRES_USER=${DB_POSTGRES_USER}
+            - DB_POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
+            - DB_POSTGRES_PORT=${DB_POSTGRES_PORT}
+        restart: unless-stopped
+        tty: true
+        container_name: web
+        networks:
+            - frontend
+            - backend
+
+    ### PostgreSQL ###########################################
+    postgres:
+        build: ./docker/postgres
+        ports:
+            - "${DB_POSTGRES_PORT}:5432"
+        restart: unless-stopped
+        tty: true
+        container_name: postgres
+        environment:
+            - POSTGRES_DB=${DB_POSTGRES_NAME}
+            - POSTGRES_USER=${DB_POSTGRES_USER}
+            - POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
+            - PGDATA=/var/lib/postgresql/data
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - backend
+
+    ### Adminer ###########################################
+    adminer:
+        image: adminer
+        container_name: adminer
+        restart: always
+        ports:
+            - 8080:8080
+        networks:
+            - frontend
+            - backend
